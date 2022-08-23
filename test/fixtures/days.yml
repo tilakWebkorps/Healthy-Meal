@@ -1,0 +1,9 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  for_day: 1
+  plan_id: 1
+
+two:
+  for_day: 1
+  plan_id: 1
