@@ -4,7 +4,8 @@ class Users::SessionsController < Devise::SessionsController
   private
 
   def respond_with(resource, _opts = {})
-    render json: { message: 'You are logged in.' }, status: :ok
+    return render json: { message: 'You are logged in.' }, status: 200 if current_user
+    render json: { message: 'wrong credentials entered' }, status: 403
   end
 
   def respond_to_on_destroy
@@ -14,10 +15,10 @@ class Users::SessionsController < Devise::SessionsController
   end
 
   def log_out_success
-    render json: { message: "You are logged out." }, status: :ok
+    render json: { message: "You are logged out." }, status: 200
   end
 
   def log_out_failure
-    render json: { message: "Hmm nothing happened."}, status: :unauthorized
+    render json: { message: "Hmm nothing happened."}, status: 401
   end
 end

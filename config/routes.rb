@@ -4,4 +4,7 @@ Rails.application.routes.draw do
       sessions: 'users/sessions',
       registrations: 'users/registrations'
   }
+  namespace :users do
+    resources :users, path: '/', except: %i[create]
+  end
 end
