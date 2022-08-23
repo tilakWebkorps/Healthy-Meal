@@ -1,0 +1,2 @@
+class ActivePlan < ApplicationRecord
+end
