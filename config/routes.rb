@@ -7,4 +7,5 @@ Rails.application.routes.draw do
   namespace :users do
     resources :users, path: '/', except: %i[create]
   end
+  resources :recipes, controller: 'restaurant/recipes'
 end
