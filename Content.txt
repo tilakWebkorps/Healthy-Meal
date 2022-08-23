@@ -18,12 +18,12 @@ Schema =>
   "plan_id": integer ----> has one to many association with plan table
 }
 -------------------------------------------------------------------------------------------------------------------------------------
-Plans Table has ----> name, description, img_url, plan_duration, plan_cost, meals(based on number of plan_duration), meal_id
+Plans Table has ----> name, description, img_url, plan_duration, plan_cost, plan_meals(based on number of plan_duration)
 Schema =>
 "plan": {
   "name": string,
   "description": text,
-  "img_url": string,
+  "image": file,
   "plan_duration": integer,
   "plan_cost": integer,
   "plan_meals": array of objects
