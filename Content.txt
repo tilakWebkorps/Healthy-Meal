@@ -1,0 +1,70 @@
+Users Table has ----> name, email, age, weight, password, password_confirmation, role, active_plan
+Schema => 
+"user": {
+  "name": string,
+  "email": string,
+  "age": integer,
+  "weight": float,
+  "password": string,
+  "password_confirmation": string,
+  "role": string, ----> on registration default role always will be client
+  "active_plan": boolean, ----> true if have some plan, else false
+}
+-------------------------------------------------------------------------------------------------------------------------------------
+Active_Plans Table has ----> user_id, plan_id
+Schema =>
+"active_plan": {
+  "user_id": integer, ----> has no association but user_id will be stored
+  "plan_id": integer ----> has one to many association with plan table
+}
+-------------------------------------------------------------------------------------------------------------------------------------
+Plans Table has ----> name, description, img_url, plan_duration, plan_cost, meals(based on number of plan_duration), meal_id
+Schema =>
+"plan": {
+  "name": string,
+  "description": text,
+  "img_url": string,
+  "plan_duration": integer,
+  "plan_cost": integer,
+  "plan_meals": array of objects
+}
+Object inside Meal array =>
+[
+  { ----> all attributes of the object contents recipe_id
+    "morning_snacks": integer,
+    "lunch": integer,
+    "afternoon_snacks": integer,
+    "dinner": integer,
+    "hydration": integer
+  }
+]
+-------------------------------------------------------------------------------------------------------------------------------------
+Days Table has ----> for_day, plan_id
+Schema =>
+"day": {
+  "for_day": integer,
+  "plan_id": integer ----> has one to many association with plan table
+}
+-------------------------------------------------------------------------------------------------------------------------------------
+Meal Table has ----> day_id, meal_category_id, recipe_id
+Schema =>
+"meal": {
+  "day_id": integer, ----> has one to many association with day table
+  "meal_category_id": integer, ----> has many to many association with recipe table
+  "recipe_id": integer ----> has many to many association with meal_category table
+}
+-------------------------------------------------------------------------------------------------------------------------------------
+Meal_Categories Table has ----> name ----> has many to many association with recipe table through meal table
+Schema =>
+"meal_category": {
+  "name": string
+}
+-------------------------------------------------------------------------------------------------------------------------------------
+Recipes Table has ----> name, description, ingredients ----> has many to many association with meal_category table through meal table
+Schema =>
+"recipe": {
+  "name": string,
+  "description": text,
+  "ingredients": may be array
+}
+=====================================================================================================================================
