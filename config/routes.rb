@@ -8,4 +8,5 @@ Rails.application.routes.draw do
     resources :users, path: '/', except: %i[create]
   end
   resources :recipes, controller: 'restaurant/recipes'
+  resources :plans, controller: 'restaurant/plans'
 end
