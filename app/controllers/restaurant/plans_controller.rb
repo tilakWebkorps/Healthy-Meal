@@ -1,7 +1,7 @@
 class Restaurant::PlansController < ApplicationController
   before_action :get_plan, except: %i[index create]
   def index
-    @plans = Plan.all
+    @plans = Plan.includes(days: {meals: [:meal_category, :recipe]}).all
     render json: { plans: show_plans }, status: 200
   end
 
@@ -43,6 +43,26 @@ class Restaurant::PlansController < ApplicationController
     end
   end
 
+  def buy_plan
+    if current_user.active_plan
+      render json: { message: 'your plan is already activated try to buy after '+current_user.plan_duration.to_s+' days' }, status: 406
+    else
+      plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
+      user = User.find(current_user.id)
+      expiry_date = DateTime.now.next_day(@plan.plan_duration)
+      @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
+      if @activate_plan.save
+        if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: expiry_date)
+          render json: { message: generate_bill }
+        else
+          render json: { message: 'something wrong' }, status: 500
+        end
+      else
+        render json: { message: 'something wrong' }, status: 500
+      end
+    end
+  end
+
   def destroy
     @plan.destroy
     render json: { message: 'plan deleted' }, status: 200
@@ -55,7 +75,7 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def get_plan
-    @plan = Plan.find(params[:id])
+    @plan = Plan.includes(days: {meals: [:meal_category, :recipe]}).find(params[:id])
   end
 
   def check_for_errors(cost, duration, meals)
@@ -168,6 +188,26 @@ class Restaurant::PlansController < ApplicationController
       }
     end
     return plans
+  end
+
+  def generate_time(time)
+    date = ''
+    date += time.year.to_s
+    date += '0' if time.month.to_i < 10
+    date += time.month.to_s
+    date += '0' if time.day.to_i < 10
+    date += time.day.to_s
+    return date
+  end
+
+  def generate_bill
+    {
+      plan_name: @plan.name,
+      plan_description: @plan.description,
+      plan_cost: @plan.plan_cost,
+      plan_duration: @plan.plan_duration,
+      expiry_date: "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
+    }
   end
 
   def destroy_plan
