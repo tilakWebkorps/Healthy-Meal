@@ -23,7 +23,6 @@ Schema =>
 "plan": {
   "name": string,
   "description": text,
-  "image": file,
   "plan_duration": integer,
   "plan_cost": integer,
   "plan_meals": array of objects

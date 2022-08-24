@@ -2,11 +2,11 @@ class Restaurant::PlansController < ApplicationController
   before_action :get_plan, except: %i[index create]
   def index
     @plans = Plan.all
-    render json: { plans: @plans }, status: 200
+    render json: { plans: show_plans }, status: 200
   end
 
   def show
-    render json: { plan: @plan }, status: 200
+    render json: { plan: show_plan }, status: 200
   end
 
   def create
@@ -15,19 +15,29 @@ class Restaurant::PlansController < ApplicationController
     plan_duration = params[:plan][:plan_duration].to_i
     plan_meals = params[:plan][:plan_meals]
     @errors = {}
-    is_error = check_for_errors(plan_cost, plan_duration, plan_meals)
-    return render json: { message: @errors }, status: 406 if is_error
+    @is_error = false
+    check_for_errors(plan_cost, plan_duration, plan_meals)
+    return render json: { message: @errors }, status: 406 if @is_error
     if @plan.save
       add_days(plan_meals)
-      render json: { message: 'plan created', plan: @plan }, status: 201
+      return render json: { message: @errors }, status: 406 if @is_error
+      render json: { message: 'plan created', plan: show_plan }, status: 201
     else
       render json: { message: @plan.errors.messages }, status: 406
     end
   end
 
   def update
+    plan_cost = params[:plan][:plan_cost].to_i
+    plan_duration = params[:plan][:plan_duration].to_i
+    plan_meals = params[:plan][:plan_meals]
+    @errors = {}
+    @is_error = false
+    check_for_errors(plan_cost, plan_duration, plan_meals)
+    return render json: { message: @errors }, status: 406 if @is_error
     if @plan.update(plan_params)
-      render json: { message: 'plan updated', plan: @plan }, status: 200
+      update_days(plan_meals)
+      render json: { message: 'plan updated', plan: show_plan }, status: 200
     else
       render json: { message: @plan.errors.messages }, status: 406
     end
@@ -49,20 +59,19 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def check_for_errors(cost, duration, meals)
-    is_error = false
     if cost < 1000
-      is_error = true
+      @is_error = true
       @errors[:plan_cost] = 'cost of the plan must be larger than 1000'
     end
     unless [7,14,21].include? duration
-      is_error = true
+      @is_error = true
       @errors[:plan_duration] = 'duration must be 7, 14 or 21'
     end
     unless duration == meals.size
-      is_error = true
+      @is_error = true
       @errors[:plan_meals] = 'please enter all day\'s schedules'
     end
-    return is_error
+    return @is_error
   end
 
   def add_days(day_meals)
@@ -78,10 +87,90 @@ class Restaurant::PlansController < ApplicationController
 
   def add_meal(meals)
     category = 1
+    recipes = Recipe.all.ids
     meals.each do |meal, recipe|
-      @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
-      @meal.save
-      category += 1
+      if ['morning_snacks', 'lunch', 'afternoon_snacks', 'dinner', 'hydration'].include?meal
+        if recipes.include?recipe
+          @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
+          @meal.save
+          category += 1
+        else
+          @is_error = true
+          destroy_plan
+          @errors[:recipe] = 'the recipe that you give is not found first create it'
+        end
+      else
+        @is_error = true
+        destroy_plan
+        @errors[:meal] = 'please enter all meal schedule corretly'
+      end
     end
+  end
+
+  def update_days(plan_meals)
+    for_day = 0
+    days = @plan.days.sort
+    days.each do |day|
+      plan_meal = plan_meals[for_day]
+      update_meals(day.meals, plan_meal)
+      for_day += 1
+    end
+  end
+
+  def update_meals(meals, plan_meals)
+    for_meal = 0
+    plan_meals.each do |plan_meal, recipe|
+      meal = meals[for_meal]
+      meal.recipe_id = recipe.to_i
+      meal.save
+      for_meal += 1
+    end
+  end
+
+  def show_plan
+    {
+      id: @plan.id,
+      name: @plan.name,
+      description: @plan.description,
+      plan_duration: @plan.plan_duration,
+      plan_cost: @plan.plan_cost,
+      view_url: plan_url(@plan),
+      plan_meal: show_plan_day,
+      created_at: @plan.created_at,
+      updated_at: @plan.updated_at
+    }
+  end
+
+  def show_plan_day
+    plan_meals = []
+    @plan.days.each do |day|
+      plan_meal = {}
+      day.meals.each do |meal|
+        plan_meal[meal.meal_category.name] = meal.recipe.name
+      end
+      plan_meals << plan_meal
+    end
+    return plan_meals
+  end
+
+  def show_plans
+    plans = []
+    @plans.each do |plan|
+      plans << {
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        plan_duration: plan.plan_duration,
+        plan_cost: plan.plan_cost,
+        view_url: plan_url(plan),
+        created_at: plan.created_at,
+        updated_at: plan.updated_at
+      }
+    end
+    return plans
+  end
+
+  def destroy_plan
+    @plan.destroy
   end
 end
