@@ -4,7 +4,10 @@ class Users::SessionsController < Devise::SessionsController
   private
 
   def respond_with(resource, _opts = {})
-    return render json: { message: 'You are logged in.' }, status: 200 if current_user
+    if current_user
+      check_user_plan_expiry
+      return render json: { message: 'You are logged in.' }, status: 200
+    end
     render json: { message: 'wrong credentials entered' }, status: 403
   end
 

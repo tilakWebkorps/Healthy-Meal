@@ -45,15 +45,16 @@ class Restaurant::PlansController < ApplicationController
 
   def buy_plan
     if current_user.active_plan
-      render json: { message: 'your plan is already activated try to buy after '+current_user.plan_duration.to_s+' days' }, status: 406
+      expiry_date = "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
+      render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date }, status: 406
     else
       plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
       user = User.find(current_user.id)
-      expiry_date = DateTime.now.next_day(@plan.plan_duration)
+      @expiry_date = DateTime.now.next_day(@plan.plan_duration)
       @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
       if @activate_plan.save
         if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: expiry_date)
-          render json: { message: generate_bill }
+          render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
         else
           render json: { message: 'something wrong' }, status: 500
         end
@@ -190,23 +191,13 @@ class Restaurant::PlansController < ApplicationController
     return plans
   end
 
-  def generate_time(time)
-    date = ''
-    date += time.year.to_s
-    date += '0' if time.month.to_i < 10
-    date += time.month.to_s
-    date += '0' if time.day.to_i < 10
-    date += time.day.to_s
-    return date
-  end
-
   def generate_bill
     {
       plan_name: @plan.name,
       plan_description: @plan.description,
       plan_cost: @plan.plan_cost,
       plan_duration: @plan.plan_duration,
-      expiry_date: "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
+      expiry_date: "#{@expiry_date.day}/#{@expiry_date.month}/#{@expiry_date.year}"
     }
   end
 
