@@ -26,7 +26,7 @@ class ApplicationController < ActionController::API
   end
 
   class Exception < StandardError
-    class UserNotLoggedIn < DataHandler
+    class UserNotLoggedIn < Exception
       def message
         "User is not logged in"
       end

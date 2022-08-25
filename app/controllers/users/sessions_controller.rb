@@ -4,11 +4,16 @@ class Users::SessionsController < Devise::SessionsController
   private
 
   def respond_with(resource, _opts = {})
-    if current_user
-      check_user_plan_expiry
-      return render json: { message: 'You are logged in.' }, status: 200
+    begin
+      Exception.handle(current_user)
+      if current_user
+        check_user_plan_expiry
+        return render json: { message: 'You are logged in.' }, status: 200
+      end
+      render json: { message: 'wrong credentials entered' }, status: 403
+    rescue StandardError => e
+      render json: { message: e.message }
     end
-    render json: { message: 'wrong credentials entered' }, status: 403
   end
 
   def respond_to_on_destroy
