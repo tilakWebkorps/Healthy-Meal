@@ -9,5 +9,9 @@ Rails.application.routes.draw do
   end
   resources :recipes, controller: 'restaurant/recipes'
   resources :plans, controller: 'restaurant/plans'
-  get 'restaurant/plans/:id/buy', to: 'restaurant/plans#buy_plan'
+  root 'restaurant/plans#index'
+  get 'restaurant/plans/:id/buy', to: 'restaurant/plans#buy_plan', as: 'buy_plan'
+  post 'users/:id/change_role', to: 'users/users#update'
+  get 'restaurant/plans/:id/users_activated', to: 'restaurant/plans#users_activated'
+  get 'restaurant/plans/active_users', to: 'restaurant/plans#active_users'
 end

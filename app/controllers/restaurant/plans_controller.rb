@@ -1,5 +1,5 @@
 class Restaurant::PlansController < ApplicationController
-  before_action :get_plan, except: %i[index create]
+  before_action :get_plan, except: %i[index create active_users]
   def index
     @plans = Plan.includes(days: {meals: [:meal_category, :recipe]}).all
     render json: { plans: show_plans }, status: 200
@@ -11,15 +11,11 @@ class Restaurant::PlansController < ApplicationController
 
   def create
     @plan = Plan.new(plan_params)
-    plan_cost = params[:plan][:plan_cost].to_i
-    plan_duration = params[:plan][:plan_duration].to_i
-    plan_meals = params[:plan][:plan_meals]
-    @errors = {}
-    @is_error = false
-    check_for_errors(plan_cost, plan_duration, plan_meals)
+    variables_for_plan
+    check_for_errors(@plan_cost, @plan_duration, @plan_meals)
     return render json: { message: @errors }, status: 406 if @is_error
     if @plan.save
-      add_days(plan_meals)
+      add_days(@plan_meals)
       return render json: { message: @errors }, status: 406 if @is_error
       render json: { message: 'plan created', plan: show_plan }, status: 201
     else
@@ -28,15 +24,11 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def update
-    plan_cost = params[:plan][:plan_cost].to_i
-    plan_duration = params[:plan][:plan_duration].to_i
-    plan_meals = params[:plan][:plan_meals]
-    @errors = {}
-    @is_error = false
-    check_for_errors(plan_cost, plan_duration, plan_meals)
+    variables_for_plan
+    check_for_errors(@plan_cost, @plan_duration, @plan_meals)
     return render json: { message: @errors }, status: 406 if @is_error
     if @plan.update(plan_params)
-      update_days(plan_meals)
+      update_days(@plan_meals)
       render json: { message: 'plan updated', plan: show_plan }, status: 200
     else
       render json: { message: @plan.errors.messages }, status: 406
@@ -46,22 +38,38 @@ class Restaurant::PlansController < ApplicationController
   def buy_plan
     if current_user.active_plan
       expiry_date = "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
-      render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date }, status: 406
+      render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date, plan: plan_url(@plan) }, status: 406
     else
       plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
       user = User.find(current_user.id)
       @expiry_date = DateTime.now.next_day(@plan.plan_duration)
       @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
       if @activate_plan.save
-        if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: expiry_date)
+        @expiry_date = DateTime.now.next_day(@plan.plan_duration)
+        if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
           render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
         else
           render json: { message: 'something wrong' }, status: 500
         end
       else
-        render json: { message: 'something wrong' }, status: 500
+        render json: { message: 'something wrong try again' }, status: 500
       end
     end
+  end
+
+  def users_activated
+    active_plans = ActivePlan.where(plan_id: @plan.id)
+    users = []
+    active_plans.each do |active_plan|
+      user = User.find(active_plan.user_id)
+      users << user
+    end
+    render json: { users_activated: users }
+  end
+
+  def active_users
+    users = User.where(active_plan: true)
+    render json: { users: users }
   end
 
   def destroy
@@ -77,6 +85,14 @@ class Restaurant::PlansController < ApplicationController
 
   def get_plan
     @plan = Plan.includes(days: {meals: [:meal_category, :recipe]}).find(params[:id])
+  end
+
+  def variables_for_plan
+    @plan_cost = params[:plan][:plan_cost].to_i
+    @plan_duration = params[:plan][:plan_duration].to_i
+    @plan_meals = params[:plan][:plan_meals]
+    @errors = {}
+    @is_error = false
   end
 
   def check_for_errors(cost, duration, meals)
@@ -156,9 +172,8 @@ class Restaurant::PlansController < ApplicationController
       plan_duration: @plan.plan_duration,
       plan_cost: @plan.plan_cost,
       view_url: plan_url(@plan),
-      plan_meal: show_plan_day,
-      created_at: @plan.created_at,
-      updated_at: @plan.updated_at
+      buy_url: buy_plan_url(@plan),
+      plan_meal: show_plan_day
     }
   end
 
@@ -166,6 +181,7 @@ class Restaurant::PlansController < ApplicationController
     plan_meals = []
     @plan.days.each do |day|
       plan_meal = {}
+      plan_meal[:day] = day.for_day
       day.meals.each do |meal|
         plan_meal[meal.meal_category.name] = meal.recipe.name
       end
@@ -184,8 +200,7 @@ class Restaurant::PlansController < ApplicationController
         plan_duration: plan.plan_duration,
         plan_cost: plan.plan_cost,
         view_url: plan_url(plan),
-        created_at: plan.created_at,
-        updated_at: plan.updated_at
+        buy_url: buy_plan_url(plan)
       }
     end
     return plans
