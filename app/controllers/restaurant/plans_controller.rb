@@ -96,6 +96,10 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def check_for_errors(cost, duration, meals)
+    meals_size = 0
+    meals.each do |day, meal|
+      meals_size += 1
+    end
     if cost < 1000
       @is_error = true
       @errors[:plan_cost] = 'cost of the plan must be larger than 1000'
@@ -104,7 +108,7 @@ class Restaurant::PlansController < ApplicationController
       @is_error = true
       @errors[:plan_duration] = 'duration must be 7, 14 or 21'
     end
-    unless duration == meals.size
+    unless duration == meals_size
       @is_error = true
       @errors[:plan_meals] = 'please enter all day\'s schedules'
     end
@@ -112,25 +116,23 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def add_days(day_meals)
-    for_day = 1
-    day_meals.each do |day|
-      @day = Day.new(for_day: for_day.to_i, plan_id: @plan.id)
+    day_meals.each do |day, meals|
+      @day = Day.new(for_day: day, plan_id: @plan.id)
       if @day.save
-        add_meal(day)
-        for_day += 1
+        add_meal(meals)
       end
     end
   end
 
   def add_meal(meals)
-    category = 1
     recipes = Recipe.all.ids
+    category_names = get_categories
     meals.each do |meal, recipe|
-      if ['morning_snacks', 'lunch', 'afternoon_snacks', 'dinner', 'hydration'].include?meal
+      if category_names.include?meal.gsub('_', ' ')
+        category_id = MealCategory.find_by(name: meal.gsub('_', ' '))
         if recipes.include?recipe
-          @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
+          @meal = Meal.new(day_id: @day.id, meal_category_id: category_id.id.to_i, recipe_id: recipe.to_i)
           @meal.save
-          category += 1
         else
           @is_error = true
           destroy_plan
@@ -164,6 +166,15 @@ class Restaurant::PlansController < ApplicationController
     end
   end
 
+  def get_categories
+    category_names = []
+    categories = MealCategory.all
+    categories.each do |category|
+      category_names << category.name
+    end
+    return category_names
+  end
+
   def show_plan
     {
       id: @plan.id,
@@ -178,14 +189,13 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def show_plan_day
-    plan_meals = []
+    plan_meals = {}
     @plan.days.each do |day|
       plan_meal = {}
-      plan_meal[:day] = day.for_day
       day.meals.each do |meal|
-        plan_meal[meal.meal_category.name] = meal.recipe.name
+        plan_meal[meal.meal_category.name] = meal.recipe
       end
-      plan_meals << plan_meal
+      plan_meals[day.for_day.to_s] = plan_meal
     end
     return plan_meals
   end
@@ -212,7 +222,8 @@ class Restaurant::PlansController < ApplicationController
       plan_description: @plan.description,
       plan_cost: @plan.plan_cost,
       plan_duration: @plan.plan_duration,
-      expiry_date: "#{@expiry_date.day}/#{@expiry_date.month}/#{@expiry_date.year}"
+      expiry_date: "#{@expiry_date.day}/#{@expiry_date.month}/#{@expiry_date.year}",
+      plan_url: plan_url(@plan)
     }
   end
 
