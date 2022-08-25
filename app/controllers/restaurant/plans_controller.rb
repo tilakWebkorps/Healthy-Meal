@@ -128,10 +128,10 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def add_meal(meals)
-    category_names = generate_category_name
+    category = 1
     recipes = Recipe.all.ids
     meals.each do |meal, recipe|
-      if categories.include?meal
+      if ['morning_snacks', 'lunch', 'afternoon_snacks', 'dinner', 'hydration'].include?meal
         if recipes.include?recipe
           @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
           @meal.save
@@ -167,15 +167,6 @@ class Restaurant::PlansController < ApplicationController
       meal.save
       for_meal += 1
     end
-  end
-
-  def generate_category_name
-    category_names = []
-    categories = MealCategory.all
-    categories.each do |category|
-      category_names << category.name.gsub(' ', '_')
-    end
-    return category_names
   end
 
   def show_plan
