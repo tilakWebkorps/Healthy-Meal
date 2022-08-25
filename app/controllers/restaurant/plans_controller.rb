@@ -183,7 +183,7 @@ class Restaurant::PlansController < ApplicationController
       plan_meal = {}
       plan_meal[:day] = day.for_day
       day.meals.each do |meal|
-        plan_meal[meal.meal_category.name] = meal.recipe.name
+        plan_meal[meal.meal_category.name] = meal.recipe
       end
       plan_meals << plan_meal
     end
