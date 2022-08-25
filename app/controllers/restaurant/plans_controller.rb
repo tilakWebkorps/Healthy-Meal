@@ -36,24 +36,29 @@ class Restaurant::PlansController < ApplicationController
   end
 
   def buy_plan
-    if current_user.active_plan
-      expiry_date = "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
-      render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date, plan: plan_url(@plan) }, status: 406
-    else
-      plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
-      user = User.find(current_user.id)
-      @expiry_date = DateTime.now.next_day(@plan.plan_duration)
-      @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
-      if @activate_plan.save
-        @expiry_date = DateTime.now.next_day(@plan.plan_duration)
-        if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
-          render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
-        else
-          render json: { message: 'something wrong' }, status: 500
-        end
+    begin
+      Exception.handle(current_user)
+      if current_user.active_plan
+        expiry_date = "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
+        render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date, plan: plan_url(@plan) }, status: 406
       else
-        render json: { message: 'something wrong try again' }, status: 500
+        plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
+        user = User.find(current_user.id)
+        @expiry_date = DateTime.now.next_day(@plan.plan_duration)
+        @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
+        if @activate_plan.save
+          @expiry_date = DateTime.now.next_day(@plan.plan_duration)
+          if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
+            render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
+          else
+            render json: { message: 'something wrong' }, status: 500
+          end
+        else
+          render json: { message: 'something wrong try again' }, status: 500
+        end
       end
+    rescue StandardError => e
+      render json: { message: e.message }, status: 401 
     end
   end
 

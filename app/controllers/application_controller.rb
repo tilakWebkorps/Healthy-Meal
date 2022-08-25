@@ -24,4 +24,15 @@ class ApplicationController < ActionController::API
     date += time.day.to_s
     return date
   end
+
+  class Exception < StandardError
+    class UserNotLoggedIn < DataHandler
+      def message
+        "User is not logged in"
+      end
+    end
+    def self.handle(current_user)
+      raise UserNotLoggedIn if !current_user
+    end
+  end
 end
