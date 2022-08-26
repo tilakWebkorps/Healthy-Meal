@@ -44,4 +44,8 @@ class ApplicationController < ActionController::API
       raise UserNotLoggedIn if !current_user
     end
   end
+
+  def routing_error
+    render json: { message: 'Route not found' }, status: 404
+  end
 end
