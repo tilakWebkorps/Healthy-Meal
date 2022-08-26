@@ -21,11 +21,4 @@
 # update crontab = whenever --update-crontab
 # update crontab to development = whenever --update-crontab --set environment='development'
 # runner 'User.methodname'
-set :output, './log/cron.log'
-
-every 1.minutes do
-  runner 'User.user_expiries'
-  runner "puts 'Hello, World'"
-end
-
 # Learn more: http://github.com/javan/whenever
