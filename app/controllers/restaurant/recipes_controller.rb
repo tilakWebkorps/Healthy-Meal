@@ -1,4 +1,5 @@
 class Restaurant::RecipesController < ApplicationController
+  load_and_authorize_resource
   before_action :get_recipe, except: %i[index create]
   def index
     @recipes = Recipe.all

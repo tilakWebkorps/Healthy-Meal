@@ -1,4 +1,5 @@
 class Restaurant::PlansController < ApplicationController
+  load_and_authorize_resource
   before_action :get_plan, except: %i[index create active_users]
   def index
     @plans = Plan.includes(days: {meals: [:meal_category, :recipe]}).all

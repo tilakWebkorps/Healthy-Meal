@@ -1,4 +1,5 @@
 class Users::UsersController < ApplicationController
+  load_and_authorize_resource
   before_action :get_user_data, except: %i[index]
   def index
     @users = User.all
@@ -18,6 +19,8 @@ class Users::UsersController < ApplicationController
   end
 
   def destroy
+    active_plan = ActivePlan.find_by(user_id: @user.id)
+    active_plan.destroy
     @user.destroy
     render json: { message: 'User deleted successfully' }, status: 200
   end

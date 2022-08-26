@@ -1,4 +1,8 @@
 class ApplicationController < ActionController::API
+  rescue_from CanCan::AccessDenied do
+    render json: { message: 'This User Not Authorised !', sign_in_url: user_session_url }, status: 401
+  end
+  
   def check_user_plan_expiry
     if current_user.active_plan
       time = generate_time(DateTime.now)
