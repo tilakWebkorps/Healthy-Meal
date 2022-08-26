@@ -49,6 +49,7 @@ class Restaurant::PlansController < ApplicationController
         if @activate_plan.save
           @expiry_date = DateTime.now.next_day(@plan.plan_duration)
           if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
+            UserMailer.plan_purchased(current_user).deliver_later
             render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
           else
             render json: { message: 'something wrong' }, status: 500

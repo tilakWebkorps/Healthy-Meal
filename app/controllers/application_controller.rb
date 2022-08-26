@@ -6,6 +6,7 @@ class ApplicationController < ActionController::API
         active_plan = ActivePlan.find_by(user_id: current_user.id)
         if active_plan.destroy
           user = User.find(current_user.id)
+          UserMailer.plan_expires(user).deliver_later
           user.active_plan = false
           user.plan_duration = 0
           user.expiry_date = nil

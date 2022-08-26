@@ -1,0 +1,25 @@
+<h1>Plan Purchased</h1>
+<p>Dear,</p>
+<p><%= @user.name %> your purchase for <%= @plan.name %> this plan is get successfull on Healthy Meals</p>
+
+<table>
+  <tr>
+    <th colspan="2" > Bill </th>
+  </tr>
+  <tr>
+    <td> Plan Name </td>
+    <td> <%= @plan.name.capitalize %> </td>
+  </tr>
+  <tr>
+    <td> Plan Duration </td>
+    <td> <%= @plan.plan_duration %> </td>
+  </tr>
+  <tr>
+    <td> Ammount Paid </td>
+    <td> <%= @plan.plan_cost %> </td>
+  </tr>
+  <tr>
+    <td> Exipry Date </td>
+    <td> <%= @user.expiry_date %> </td>
+  </tr>
+</table>
