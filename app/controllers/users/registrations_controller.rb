@@ -1,26 +1,31 @@
-class Users::RegistrationsController < Devise::RegistrationsController
-  before_action :configure_permitted_parameters, if: :devise_controller?
+# frozen_string_literal: true
 
-  respond_to :json
+module Users
+  # registration
+  class RegistrationsController < Devise::RegistrationsController
+    before_action :configure_permitted_parameters, if: :devise_controller?
 
-  private
+    respond_to :json
 
-  def configure_permitted_parameters
-    devise_parameter_sanitizer.permit(:sign_up, keys: [:name, :age, :weight])
-  end
+    private
 
-  def respond_with(resource, _opts = {})
-    register_success && return if resource.persisted?
+    def configure_permitted_parameters
+      devise_parameter_sanitizer.permit(:sign_up, keys: %i[name age weight])
+    end
 
-    register_failed
-  end
+    def respond_with(resource, _opts = {})
+      register_success && return if resource.persisted?
 
-  def register_success
-    UserMailer.user_welcome(current_user).deliver_later
-    render json: { message: 'Signed up sucessfully.' }, status: 201
-  end
+      register_failed
+    end
 
-  def register_failed
-    render json: { message: resource.errors.messages }, status: 406 if resource
+    def register_success
+      UserMailer.user_welcome(current_user).deliver_later
+      render json: { message: 'Signed up sucessfully.' }, status: 201
+    end
+
+    def register_failed
+      render json: { message: resource.errors.messages }, status: 406 if resource
+    end
   end
 end

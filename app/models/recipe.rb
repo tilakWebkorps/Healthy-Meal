@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class Recipe < ApplicationRecord
-  serialize :ingredients,Array
+  serialize :ingredients, Array
 
   has_many :meals
   has_many :meal_categories, through: :meals

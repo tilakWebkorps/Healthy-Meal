@@ -1,55 +1,60 @@
-class Restaurant::RecipesController < ApplicationController
-  load_and_authorize_resource
-  before_action :get_recipe, except: %i[index create]
-  def index
-    @recipes = Recipe.all
-    render json: { recipes: @recipes }
-  end
+# frozen_string_literal: true
 
-  def show
-    render json: { recipe: @recipe }
-  end
-
-  def create
-    @recipe = Recipe.new(recipe_params)
-    add_ingredients(params[:recipe][:ingredients])
-    if @recipe.save
-      render json: { message: 'recipe created', recipe: @recipe }, status: 201
-    else
-      render json: { message: @recipe.errors.messages }, status: 406
+module Restaurant
+  # recipe controller
+  class RecipesController < ApplicationController
+    load_and_authorize_resource
+    before_action :take_recipe, except: %i[index create]
+    def index
+      @recipes = Recipe.all
+      render json: { recipes: @recipes }
     end
-  end
 
-  def update
-    if params[:recipe][:ingredients]
-      @recipe.ingredients.clear
+    def show
+      render json: { recipe: @recipe }
+    end
+
+    def create
+      @recipe = Recipe.new(recipe_params)
       add_ingredients(params[:recipe][:ingredients])
+      if @recipe.save
+        render json: { message: 'recipe created', recipe: @recipe }, status: 201
+      else
+        render json: { message: @recipe.errors.messages }, status: 406
+      end
     end
-    if @recipe.update(recipe_params)
-      render json: { message: 'recipe updated', recipe: @recipe }, status: 200
-    else
-      render json: { message: @recipe.errors.messages }, status: 406
+
+    def update
+      if params[:recipe][:ingredients]
+        @recipe.ingredients.clear
+        add_ingredients(params[:recipe][:ingredients])
+      end
+      if @recipe.update(recipe_params)
+        render json: { message: 'recipe updated', recipe: @recipe }, status: 200
+      else
+        render json: { message: @recipe.errors.messages }, status: 406
+      end
     end
-  end
 
-  def destroy
-    @recipe.destroy
-    render json: { message: 'recipe deleted' }, status: 200
-  end
+    def destroy
+      @recipe.destroy
+      render json: { message: 'recipe deleted' }, status: 200
+    end
 
-  private
+    private
 
-  def recipe_params
-    params.require(:recipe).permit(:name, :description)
-  end
+    def recipe_params
+      params.require(:recipe).permit(:name, :description)
+    end
 
-  def get_recipe
-    @recipe = Recipe.find(params[:id])
-  end
+    def take_recipe
+      @recipe = Recipe.find(params[:id])
+    end
 
-  def add_ingredients(ingredients)
-    ingredients.each do |ingredient|
-      @recipe.ingredients << ingredient
+    def add_ingredients(ingredients)
+      ingredients.each do |ingredient|
+        @recipe.ingredients << ingredient
+      end
     end
   end
 end

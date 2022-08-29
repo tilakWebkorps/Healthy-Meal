@@ -1,47 +1,55 @@
-class Restaurant::PlansController < ApplicationController
-  load_and_authorize_resource except: [:buy_plan]
-  before_action :get_plan, except: %i[index create active_users]
-  def index
-    @plans = Plan.includes(days: {meals: [:meal_category, :recipe]}).all
-    render json: { plans: show_plans }, status: 200
-  end
+# frozen_string_literal: true
 
-  def show
-    render json: { plan: show_plan }, status: 200
-  end
+module Restaurant
+  # plan Controller
+  class PlansController < ApplicationController
+    load_and_authorize_resource except: [:buy_plan]
+    before_action :get_plan, except: %i[index create active_users]
+    def index
+      @plans = Plan.includes(days: { meals: %i[meal_category recipe] }).all
+      render json: { plans: show_plans }, status: 200
+    end
 
-  def create
-    @plan = Plan.new(plan_params)
-    variables_for_plan
-    check_for_errors(@plan_cost, @plan_duration, @plan_meals)
-    return render json: { message: @errors }, status: 406 if @is_error
-    if @plan.save
-      add_days(@plan_meals)
+    def show
+      render json: { plan: show_plan }, status: 200
+    end
+
+    def create
+      @plan = Plan.new(plan_params)
+      variables_for_plan
+      check_for_errors(@plan_cost, @plan_duration, @plan_meals)
       return render json: { message: @errors }, status: 406 if @is_error
-      render json: { message: 'plan created', plan: show_plan }, status: 201
-    else
-      render json: { message: @plan.errors.messages }, status: 406
-    end
-  end
 
-  def update
-    variables_for_plan
-    check_for_errors(@plan_cost, @plan_duration, @plan_meals)
-    return render json: { message: @errors }, status: 406 if @is_error
-    if @plan.update(plan_params)
-      update_days(@plan_meals)
-      render json: { message: 'plan updated', plan: show_plan }, status: 200
-    else
-      render json: { message: @plan.errors.messages }, status: 406
-    end
-  end
+      if @plan.save
+        add_days(@plan_meals)
+        return render json: { message: @errors }, status: 406 if @is_error
 
-  def buy_plan
-    begin
+        render json: { message: 'plan created', plan: show_plan }, status: 201
+      else
+        render json: { message: @plan.errors.messages }, status: 406
+      end
+    end
+
+    def update
+      variables_for_plan
+      check_for_errors(@plan_cost, @plan_duration, @plan_meals)
+      return render json: { message: @errors }, status: 406 if @is_error
+
+      if @plan.update(plan_params)
+        update_days(@plan_meals)
+        render json: { message: 'plan updated', plan: show_plan }, status: 200
+      else
+        render json: { message: @plan.errors.messages }, status: 406
+      end
+    end
+
+    def buy_plan
       Exception.handle(current_user)
       if current_user.active_plan
         expiry_date = "#{current_user.expiry_date.day}/#{current_user.expiry_date.month}/#{current_user.expiry_date.year}"
-        render json: { message: 'your plan is already activated try to buy after ' + expiry_date.to_s, plan_expires_on: expiry_date, plan: plan_url(@plan) }, status: 406
+        render json: { message: "your plan is already activated try to buy after #{expiry_date}",
+                       plan_expires_on: expiry_date,
+                       plan: plan_url(@plan) }, status: 406
       else
         plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
         user = User.find(current_user.id)
@@ -60,170 +68,170 @@ class Restaurant::PlansController < ApplicationController
         end
       end
     rescue StandardError => e
-      render json: { message: e.message }, status: 401 
+      render json: { message: e.message }, status: 401
     end
-  end
 
-  def users_activated
-    active_plans = ActivePlan.where(plan_id: @plan.id)
-    users = []
-    active_plans.each do |active_plan|
-      user = User.find(active_plan.user_id)
-      users << user
+    def users_activated
+      active_plans = ActivePlan.where(plan_id: @plan.id)
+      users = []
+      active_plans.each do |active_plan|
+        user = User.find(active_plan.user_id)
+        users << user
+      end
+      render json: { users_activated: users }
     end
-    render json: { users_activated: users }
-  end
 
-  def active_users
-    users = User.where(active_plan: true)
-    render json: { users: users }
-  end
-
-  def destroy
-    @plan.destroy
-    render json: { message: 'plan deleted' }, status: 200
-  end
-
-  private
-
-  def plan_params
-    params.require(:plan).permit(:name, :description, :plan_duration, :plan_cost, :image)
-  end
-
-  def get_plan
-    @plan = Plan.includes(days: {meals: [:meal_category, :recipe]}).find(params[:id])
-  end
-
-  def variables_for_plan
-    @plan_cost = params[:plan][:plan_cost].to_i
-    @plan_duration = params[:plan][:plan_duration].to_i
-    @plan_meals = params[:plan][:plan_meals]
-    @errors = {}
-    @is_error = false
-  end
-
-  def check_for_errors(cost, duration, meals)
-    if cost < 1000
-      @is_error = true
-      @errors[:plan_cost] = 'cost of the plan must be larger than 1000'
+    def active_users
+      users = User.where(active_plan: true)
+      render json: { users: users }
     end
-    unless [7,14,21].include? duration
-      @is_error = true
-      @errors[:plan_duration] = 'duration must be 7, 14 or 21'
-    end
-    unless duration == meals.size
-      @is_error = true
-      @errors[:plan_meals] = 'please enter all day\'s schedules'
-    end
-    return @is_error
-  end
 
-  def add_days(day_meals)
-    for_day = 1
-    day_meals.each do |day|
-      @day = Day.new(for_day: for_day.to_i, plan_id: @plan.id)
-      if @day.save
-        add_meal(day)
-        for_day += 1
+    def destroy
+      @plan.destroy
+      render json: { message: 'plan deleted' }, status: 200
+    end
+
+    private
+
+    def plan_params
+      params.require(:plan).permit(:name, :description, :plan_duration, :plan_cost, :image)
+    end
+
+    def get_plan
+      @plan = Plan.includes(days: { meals: %i[meal_category recipe] }).find(params[:id])
+    end
+
+    def variables_for_plan
+      @plan_cost = params[:plan][:plan_cost].to_i
+      @plan_duration = params[:plan][:plan_duration].to_i
+      @plan_meals = params[:plan][:plan_meals]
+      @errors = {}
+      @is_error = false
+    end
+
+    def check_for_errors(cost, duration, meals)
+      if cost < 1000
+        @is_error = true
+        @errors[:plan_cost] = 'cost of the plan must be larger than 1000'
+      end
+      unless [7, 14, 21].include? duration
+        @is_error = true
+        @errors[:plan_duration] = 'duration must be 7, 14 or 21'
+      end
+      unless duration == meals.size
+        @is_error = true
+        @errors[:plan_meals] = 'please enter all day\'s schedules'
+      end
+      @is_error
+    end
+
+    def add_days(day_meals)
+      for_day = 1
+      day_meals.each do |day|
+        @day = Day.new(for_day: for_day.to_i, plan_id: @plan.id)
+        if @day.save
+          add_meal(day)
+          for_day += 1
+        end
       end
     end
-  end
 
-  def add_meal(meals)
-    category = 1
-    recipes = Recipe.all.ids
-    meals.each do |meal, recipe|
-      if ['morning_snacks', 'lunch', 'afternoon_snacks', 'dinner', 'hydration'].include?meal
-        if recipes.include?recipe
-          @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
-          @meal.save
-          category += 1
+    def add_meal(meals)
+      category = 1
+      recipes = Recipe.all.ids
+      meals.each do |meal, recipe|
+        if %w[morning_snacks lunch afternoon_snacks dinner hydration].include? meal
+          if recipes.include? recipe
+            @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
+            @meal.save
+            category += 1
+          else
+            @is_error = true
+            destroy_plan
+            @errors[:recipe] = 'the recipe that you give is not found first create it'
+          end
         else
           @is_error = true
           destroy_plan
-          @errors[:recipe] = 'the recipe that you give is not found first create it'
+          @errors[:meal] = 'please enter all meal schedule corretly'
         end
-      else
-        @is_error = true
-        destroy_plan
-        @errors[:meal] = 'please enter all meal schedule corretly'
       end
     end
-  end
 
-  def update_days(plan_meals)
-    for_day = 0
-    days = @plan.days.sort
-    days.each do |day|
-      plan_meal = plan_meals[for_day]
-      update_meals(day.meals, plan_meal)
-      for_day += 1
-    end
-  end
-
-  def update_meals(meals, plan_meals)
-    for_meal = 0
-    plan_meals.each do |plan_meal, recipe|
-      meal = meals[for_meal]
-      meal.recipe_id = recipe.to_i
-      meal.save
-      for_meal += 1
-    end
-  end
-
-  def show_plan
-    {
-      id: @plan.id,
-      name: @plan.name,
-      description: @plan.description,
-      plan_duration: @plan.plan_duration,
-      plan_cost: @plan.plan_cost,
-      view_url: plan_url(@plan),
-      buy_url: buy_plan_url(@plan),
-      plan_meal: show_plan_day
-    }
-  end
-
-  def show_plan_day
-    plan_meals = []
-    @plan.days.each do |day|
-      plan_meal = {}
-      plan_meal[:day] = day.for_day
-      day.meals.each do |meal|
-        plan_meal[meal.meal_category.name] = meal.recipe
+    def update_days(plan_meals)
+      for_day = 0
+      days = @plan.days.sort
+      days.each do |day|
+        plan_meal = plan_meals[for_day]
+        update_meals(day.meals, plan_meal)
+        for_day += 1
       end
-      plan_meals << plan_meal
     end
-    return plan_meals
-  end
 
-  def show_plans
-    plans = []
-    @plans.each do |plan|
-      plans << {
-        id: plan.id,
-        name: plan.name,
-        description: plan.description,
-        plan_duration: plan.plan_duration,
-        plan_cost: plan.plan_cost,
-        view_url: plan_url(plan),
-        buy_url: buy_plan_url(plan)
+    def update_meals(meals, plan_meals)
+      for_meal = 0
+      plan_meals.each do |_plan_meal, recipe|
+        meal = meals[for_meal]
+        meal.recipe_id = recipe.to_i
+        meal.save
+        for_meal += 1
+      end
+    end
+
+    def show_plan
+      {
+        id: @plan.id,
+        name: @plan.name,
+        description: @plan.description,
+        plan_duration: @plan.plan_duration,
+        plan_cost: @plan.plan_cost,
+        view_url: plan_url(@plan),
+        buy_url: buy_plan_url(@plan),
+        plan_meal: show_plan_day
       }
     end
-    return plans
-  end
 
-  def generate_bill
-    {
-      plan_name: @plan.name,
-      plan_description: @plan.description,
-      plan_cost: @plan.plan_cost,
-      plan_duration: @plan.plan_duration,
-      expiry_date: "#{@expiry_date.day}/#{@expiry_date.month}/#{@expiry_date.year}"
-    }
-  end
+    def show_plan_day
+      plan_meals = []
+      @plan.days.each do |day|
+        plan_meal = {}
+        plan_meal[:day] = day.for_day
+        day.meals.each do |meal|
+          plan_meal[meal.meal_category.name] = meal.recipe
+        end
+        plan_meals << plan_meal
+      end
+      plan_meals
+    end
 
-  def destroy_plan
-    @plan.destroy
+    def show_plans
+      plans = []
+      @plans.each do |plan|
+        plans << {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          plan_duration: plan.plan_duration,
+          plan_cost: plan.plan_cost,
+          view_url: plan_url(plan),
+          buy_url: buy_plan_url(plan)
+        }
+      end
+      plans
+    end
+
+    def generate_bill
+      {
+        plan_name: @plan.name,
+        plan_description: @plan.description,
+        plan_cost: @plan.plan_cost,
+        plan_duration: @plan.plan_duration,
+        expiry_date: "#{@expiry_date.day}/#{@expiry_date.month}/#{@expiry_date.year}"
+      }
+    end
+
+    def destroy_plan
+      @plan.destroy
+    end
   end
 end
