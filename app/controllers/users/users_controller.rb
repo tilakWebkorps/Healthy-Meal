@@ -19,8 +19,10 @@ class Users::UsersController < ApplicationController
   end
 
   def destroy
-    active_plan = ActivePlan.find_by(user_id: @user.id)
-    active_plan.destroy
+    if @user.active_plan
+      active_plan = ActivePlan.find_by(user_id: @user.id)
+      active_plan.destroy
+    end
     @user.destroy
     render json: { message: 'User deleted successfully' }, status: 200
   end
