@@ -197,7 +197,7 @@ module Restaurant
         plan_meal = {}
         plan_meal[:day] = day.for_day
         day.meals.each do |meal|
-          plan_meal[meal.meal_category.name] = meal.recipe
+          plan_meal[meal.meal_category.name] = give_recipe(meal.recipe)
         end
         plan_meals << plan_meal
       end
@@ -218,6 +218,15 @@ module Restaurant
         }
       end
       plans
+    end
+
+    def give_recipe(recipe)
+      {
+        name: recipe.name,
+        description: recipe.description,
+        ingredients: recipe.ingredients,
+        url: recipe_url(recipe)
+      }
     end
 
     def generate_bill
