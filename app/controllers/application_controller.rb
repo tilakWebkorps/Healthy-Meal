@@ -12,8 +12,7 @@ class ApplicationController < ActionController::API
 
   def check_user_plan_expiry
     return unless current_user.active_plan
-
-    time = generate_time(DateTime.now)
+    time = generate_time(Date.today)
     return unless time.to_i >= current_user.plan_duration
 
     active_plan = ActivePlan.find_by(user_id: current_user.id)
@@ -38,6 +37,15 @@ class ApplicationController < ActionController::API
     date += '0' if time.day.to_i < 10
     date += time.day.to_s
     date
+  end
+
+  def give_recipe(recipe)
+    {
+      name: recipe.name,
+      description: recipe.description,
+      ingredients: recipe.ingredients,
+      url: recipe_url(recipe)
+    }
   end
 
   # exception creation and handler

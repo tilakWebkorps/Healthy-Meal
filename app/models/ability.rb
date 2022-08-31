@@ -6,6 +6,7 @@ class Ability
 
   def initialize(user)
     can %i[read], Plan
+    can %i[show], Recipe
     return unless user.present?
 
     can %i[show update destroy], User, id: user.id

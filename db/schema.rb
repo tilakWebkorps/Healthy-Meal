@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_08_24_175315) do
+ActiveRecord::Schema.define(version: 2022_08_30_211526) do
 
   create_table "active_plans", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.integer "user_id"
@@ -48,7 +48,7 @@ ActiveRecord::Schema.define(version: 2022_08_24_175315) do
   end
 
   create_table "days", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
-    t.integer "for_day"
+    t.string "for_day"
     t.integer "plan_id"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
@@ -105,7 +105,7 @@ ActiveRecord::Schema.define(version: 2022_08_24_175315) do
     t.string "role", default: "client"
     t.boolean "active_plan", default: false
     t.integer "plan_duration", default: 0
-    t.datetime "expiry_date"
+    t.date "expiry_date"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end

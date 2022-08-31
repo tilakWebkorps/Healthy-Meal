@@ -11,6 +11,7 @@ module Users
     end
 
     def show
+      check_user_plan_expiry
       render json: { user: show_user }, status: 200
     end
 
@@ -54,8 +55,26 @@ module Users
         @plan = active_plan.plan
         user_details[:plan_expiry] = "#{@user.expiry_date.day}/#{@user.expiry_date.month}/#{@user.expiry_date.year}"
         user_details[:plan_deatils] = plan_url(@plan)
+        user_details[:todays_schedule] = get_schedule
       end
       user_details
+    end
+
+    def get_schedule
+      schedule = {}
+      expiry_date = @user.expiry_date
+      today_date = Date.today
+      remain_days = (today_date...expiry_date).count
+      schedule_for = @plan.plan_duration-remain_days
+      @plan.days.each do |day|
+        if schedule_for.to_i == day.for_day.to_i
+          schedule[:day] = day.for_day.to_i
+          day.meals.each do |meal|
+            schedule[meal.meal_category.name] = give_recipe(meal.recipe)
+          end
+        end
+      end
+      schedule
     end
   end
 end

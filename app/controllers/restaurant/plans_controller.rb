@@ -51,12 +51,11 @@ module Restaurant
                        plan_expires_on: expiry_date,
                        plan: plan_url(@plan) }, status: 406
       else
-        plan_duration = generate_time(DateTime.now.next_day(@plan.plan_duration))
+        plan_duration = generate_time(Date.today.next_day(@plan.plan_duration))
         user = User.find(current_user.id)
-        @expiry_date = DateTime.now.next_day(@plan.plan_duration)
+        @expiry_date = Date.today.next_day(@plan.plan_duration)-1
         @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
         if @activate_plan.save
-          @expiry_date = DateTime.now.next_day(@plan.plan_duration)
           if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
             UserMailer.plan_purchased(current_user).deliver_later
             render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
@@ -218,15 +217,6 @@ module Restaurant
         }
       end
       plans
-    end
-
-    def give_recipe(recipe)
-      {
-        name: recipe.name,
-        description: recipe.description,
-        ingredients: recipe.ingredients,
-        url: recipe_url(recipe)
-      }
     end
 
     def generate_bill
