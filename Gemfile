@@ -20,7 +20,7 @@ gem 'puma', '~> 5.0'
 # gem 'bcrypt', '~> 3.1.7'
 gem 'devise'
 gem 'devise-jwt'
-gem 'rack-cors'
+gem 'rack-cors', :require => 'rack/cors'
 
 # Use Active Storage variant
 gem 'image_processing', '~> 1.2'

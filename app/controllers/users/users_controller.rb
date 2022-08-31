@@ -32,6 +32,14 @@ module Users
       render json: { message: 'User deleted successfully' }, status: 200
     end
 
+    def set_role
+      if @user.update(role: params[:user][:role])
+        render json: { message: "role seted #{params[:user][:role]}" }
+      else
+        render json: { message: 'something wrong try again' }, status: 500
+      end
+    end
+
     private
 
     def take_user_data
@@ -39,7 +47,7 @@ module Users
     end
 
     def user_params
-      params.require(:user).permit(:name, :email, :age, :weight, :role)
+      params.require(:user).permit(:name, :email, :age, :weight)
     end
 
     def show_user

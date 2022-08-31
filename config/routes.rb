@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   post 'users/:id/change_role', to: 'users/users#update'
   get 'restaurant/plans/:id/users_activated', to: 'restaurant/plans#users_activated'
   get 'restaurant/plans/active_users', to: 'restaurant/plans#active_users'
+  post 'users/:id/set_role', to: 'users/users#set_role'
   get '*path', to: 'application#routing_error'
   post '*path', to: 'application#routing_error'
 end
