@@ -3,8 +3,12 @@
 module Restaurants
   # plan Controller
   class PlansController < ApplicationController
+    include Restaurants::ShowPlanData
+    include Restaurants::PlanResponse
+
     load_and_authorize_resource
     before_action :get_plan, except: %i[index create active_users]
+
     def index
       @plans = Plan.includes(:age_category, days: { meals: %i[meal_category recipe] }).all
       render json: { plans: show_plans }, status: 200
@@ -17,15 +21,12 @@ module Restaurants
     def create
       @plan = Plan.new(plan_params)
       return @plan.errors.messages unless @plan.valid?
-
       variables_for_plan
       check_for_errors(@plan_cost, @plan_duration, @plan_meals)
       return render json: { message: @errors }, status: 406 if @is_error
-
       if @plan.save
         add_days(@plan_meals)
         return render json: { message: @errors }, status: 406 if @is_error
-
         render json: { message: 'plan created', plan: show_plan }, status: 201
       else
         render json: { message: @plan.errors.messages }, status: 406
@@ -36,7 +37,6 @@ module Restaurants
       variables_for_plan
       check_for_errors(@plan_cost, @plan_duration, @plan_meals)
       return render json: { message: @errors }, status: 406 if @is_error
-
       if @plan.update(plan_params)
         update_days(@plan_meals)
         render json: { message: 'plan updated', plan: show_plan }, status: 200
@@ -49,24 +49,13 @@ module Restaurants
       ages = @plan.age_category.age.split('-', -1)
       if current_user.age.to_i >= ages[0].to_i and current_user.age.to_i <= ages[1].to_i
         if current_user.active_plan
-          render json: { message: "your plan is already activated try to buy after #{current_user.expiry_date}",
-                        plan_expires_on: current_user.expiry_date,
-                        plan: plan_url(@plan) }, status: 406
+          send_plan_is_activated_response
         else
           plan_duration = generate_time(Date.today.next_day(@plan.plan_duration))
           user = User.find(current_user.id)
           @expiry_date = Date.today.next_day(@plan.plan_duration)-1
           @activate_plan = ActivePlan.create(user_id: current_user.id, plan_id: @plan.id)
-          if @activate_plan.save
-            if user.update(active_plan: true, plan_duration: plan_duration.to_i, expiry_date: @expiry_date)
-              UserMailer.plan_purchased(current_user).deliver_later
-              render json: { message: 'purchase successfull', bill: generate_bill }, status: 200
-            else
-              render json: { message: 'something wrong' }, status: 500
-            end
-          else
-            render json: { message: 'something wrong try again' }, status: 500
-          end
+          send_plan_is_purchased_response
         end
       else
         return render json: { message: 'this plan is not suitable for you' }, status: 403
@@ -77,22 +66,8 @@ module Restaurants
       plan = Plan.find(params[:id])
       ages = plan.age_category.age.split('-', -1)
       if current_user.age.to_i >= ages[0].to_i and current_user.age.to_i <= ages[1].to_i
-        user = User.find(current_user.id)
         return render json: { message: 'you don\'t have any plan active' }, status: 403 unless current_user.active_plan
-
-        active_plan = ActivePlan.includes(:plan).find_by(user_id: current_user.id)
-        previous_plan = active_plan.plan
-        remain_days = (Date.today...user.expiry_date).count
-        if active_plan.update(plan_id: params[:id])
-          if previous_plan.plan_duration.to_i > plan.plan_duration.to_i
-            remain_expiry_days = previous_plan.plan_duration.to_i - plan.plan_duration.to_i
-            expiry_date = Date.today+remain_expiry_days-1
-            user.update(expiry_date: expiry_date, plan_duration: generate_time(expiry_date+1))
-          end
-          render json: { message: 'your plan is changed it will continue with your remaining days' }, status: 200
-        else
-          render json: { message: 'something wrong try again' }, status: 500
-        end
+        send_plan_is_changed_response(plan)
       else
         return render json: { message: 'this plan is not suitable for you' }, status: 403
       end
@@ -126,145 +101,6 @@ module Restaurants
 
     def get_plan
       @plan = Plan.includes(:age_category, days: { meals: %i[meal_category recipe] }).find(params[:id])
-    end
-
-    def variables_for_plan
-      @plan_cost = params[:plan][:plan_cost].to_i
-      @plan_duration = params[:plan][:plan_duration].to_i
-      @plan_meals = params[:plan][:plan_meals]
-      @errors = {}
-      @is_error = false
-    end
-
-    def check_for_errors(cost, duration, meals)
-      if cost < 1000
-        @is_error = true
-        @errors[:plan_cost] = 'cost of the plan must be larger than 1000'
-      end
-      unless [7, 14, 21].include? duration
-        @is_error = true
-        @errors[:plan_duration] = 'duration must be 7, 14 or 21'
-      end
-      unless duration == meals.size
-        @is_error = true
-        @errors[:plan_meals] = 'please enter all day\'s schedules'
-      end
-      @is_error
-    end
-
-    def add_days(day_meals)
-      for_day = 1
-      day_meals.each do |day|
-        @day = Day.new(for_day: for_day.to_i, plan_id: @plan.id)
-        if @day.save
-          add_meal(day)
-          for_day += 1
-        end
-      end
-    end
-
-    def add_meal(meals)
-      category = 1
-      recipes = Recipe.all.ids
-      meals.each do |meal, recipe|
-        if %w[morning_snacks lunch afternoon_snacks dinner hydration].include? meal
-          if recipes.include? recipe
-            @meal = Meal.new(day_id: @day.id, meal_category_id: category, recipe_id: recipe.to_i)
-            @meal.save
-            category += 1
-          else
-            @is_error = true
-            destroy_plan
-            @errors[:recipe] = 'the recipe that you give is not found first create it'
-          end
-        else
-          @is_error = true
-          destroy_plan
-          @errors[:meal] = 'please enter all meal schedule corretly'
-        end
-      end
-    end
-
-    def update_days(plan_meals)
-      for_day = 0
-      days = @plan.days.sort
-      days.each do |day|
-        plan_meal = plan_meals[for_day]
-        update_meals(day.meals, plan_meal)
-        for_day += 1
-      end
-    end
-
-    def update_meals(meals, plan_meals)
-      for_meal = 0
-      plan_meals.each do |_plan_meal, recipe|
-        meal = meals[for_meal]
-        meal.recipe_id = recipe.to_i
-        meal.save
-        for_meal += 1
-      end
-    end
-
-    def show_plan
-      plan = create_plan(@plan)
-      plan[:plan_meal] = show_plan_day
-      ages = @plan.age_category.age.split('-', -1)
-      return plan if current_user.role == 'admin'
-
-      return plan = {} if current_user.age.to_i >= ages[0].to_i and current_user.age <= ages[1].to_i
-    end
-
-    def show_plan_day
-      plan_meals = []
-      @plan.days.each do |day|
-        plan_meal = {}
-        plan_meal[:day] = day.for_day
-        day.meals.each do |meal|
-          plan_meal[meal.meal_category.name] = give_recipe(meal.recipe)
-        end
-        plan_meals << plan_meal
-      end
-      plan_meals
-    end
-
-    def show_plans
-      plans = []
-      @plans.each do |plan|
-        ages = plan.age_category.age.split('-', -1)
-        if current_user.role == 'admin'
-          plans << create_plan(plan)
-        elsif current_user.age.to_i >= ages[0].to_i and current_user.age <= ages[1].to_i
-          plans << create_plan(plan)
-        end
-      end
-      plans
-    end
-
-    def create_plan(plan)
-      {
-        id: plan.id,
-        name: plan.name,
-        description: plan.description,
-        for_age: plan.age_category.age,
-        plan_duration: plan.plan_duration,
-        plan_cost: plan.plan_cost,
-        view_url: plan_url(plan),
-        buy_url: buy_plan_url(plan)
-      }
-    end
-
-    def generate_bill
-      {
-        plan_name: @plan.name,
-        plan_description: @plan.description,
-        plan_cost: @plan.plan_cost,
-        plan_duration: @plan.plan_duration,
-        expiry_date: @expiry_date
-      }
-    end
-
-    def destroy_plan
-      @plan.destroy
     end
   end
 end
