@@ -61,7 +61,7 @@ module Users
       if @user.active_plan
         active_plan = ActivePlan.includes(plan: { days: { meals: %i[meal_category recipe] } }).find_by(user_id: @user.id)
         @plan = active_plan.plan
-        user_details[:plan_expiry] = "#{@user.expiry_date.day}/#{@user.expiry_date.month}/#{@user.expiry_date.year}"
+        user_details[:plan_expiry] = @user.expiry_date
         user_details[:plan_deatils] = plan_url(@plan)
         user_details[:todays_schedule] = get_schedule
       end

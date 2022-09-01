@@ -3,7 +3,7 @@
 module Restaurant
   # plan Controller
   class PlansController < ApplicationController
-    load_and_authorize_resource except: [:buy_plan]
+    load_and_authorize_resource
     before_action :get_plan, except: %i[index create active_users]
     def index
       @plans = Plan.includes(:age_category, days: { meals: %i[meal_category recipe] }).all
@@ -67,6 +67,31 @@ module Restaurant
           else
             render json: { message: 'something wrong try again' }, status: 500
           end
+        end
+      else
+        return render json: { message: 'this plan is not suitable for you' }, status: 403
+      end
+    end
+
+    def change_plan
+      plan = Plan.find(params[:id])
+      ages = plan.age_category.age.split('-', -1)
+      if current_user.age.to_i >= ages[0].to_i and current_user.age.to_i <= ages[1].to_i
+        user = User.find(current_user.id)
+        return render json: { message: 'you don\'t have any plan active' }, status: 403 unless current_user.active_plan
+
+        active_plan = ActivePlan.includes(:plan).find_by(user_id: current_user.id)
+        previous_plan = active_plan.plan
+        remain_days = (Date.today...user.expiry_date).count
+        if active_plan.update(plan_id: params[:id])
+          if previous_plan.plan_duration.to_i > plan.plan_duration.to_i
+            remain_expiry_days = previous_plan.plan_duration.to_i - plan.plan_duration.to_i
+            expiry_date = Date.today+remain_expiry_days-1
+            user.update(expiry_date: expiry_date, plan_duration: generate_time(expiry_date+1))
+          end
+          render json: { message: 'your plan is changed it will continue with your remaining days' }, status: 200
+        else
+          render json: { message: 'something wrong try again' }, status: 500
         end
       else
         return render json: { message: 'this plan is not suitable for you' }, status: 403
@@ -181,11 +206,12 @@ module Restaurant
     end
 
     def show_plan
-      ages = @plan.age_category.age.split('-', -1)
-      return plan = {} unless current_user.age.to_i >= ages[0].to_i and current_user.age <= ages[1].to_i
       plan = create_plan(@plan)
       plan[:plan_meal] = show_plan_day
-      plan
+      ages = @plan.age_category.age.split('-', -1)
+      return plan if current_user.role == 'admin'
+
+      return plan = {} if current_user.age.to_i >= ages[0].to_i and current_user.age <= ages[1].to_i
     end
 
     def show_plan_day
