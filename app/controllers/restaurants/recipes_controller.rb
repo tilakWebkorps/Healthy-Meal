@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
-module Restaurant
+module Restaurants
   # recipe controller
   class RecipesController < ApplicationController
+    include Restaurants::ShowRecipeData
+
     load_and_authorize_resource
     before_action :take_recipe, except: %i[index create]
     def index
@@ -55,28 +57,6 @@ module Restaurant
       ingredients.each do |ingredient|
         @recipe.ingredients << ingredient
       end
-    end
-
-    def show_recipes
-      recipes = []
-      @recipes.each do |recipe|
-        recipes << {
-          name: recipe.name,
-          description: recipe.description,
-          ingredients: recipe.ingredients,
-          url: recipe_url(recipe)
-        }
-      end
-      recipes
-    end
-
-    def show_recipe
-      {
-        name: @recipe.name,
-        description: @recipe.description,
-        ingredients: @recipe.ingredients,
-        url: recipe_url(@recipe)
-      }
     end
   end
 end
